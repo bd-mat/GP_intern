@@ -102,7 +102,7 @@ plt.show()
 
 # make a random mask, but distribute the points over the domain
 rands = np.zeros(N,dtype=bool)
-N_obs = 60
+N_obs = 5
 divs = int(np.floor(N/N_obs))
 for i in range(0,N_obs):
     rands[rd.randint(i*divs,(i+1)*divs-1)] = True
@@ -176,21 +176,23 @@ if check == 'y':
     GP(obs_x,obs_y,xs,sample1,res.x)
     
     # plotting hyperparameter contours
-    
-    varis = np.linspace(res.x[1]/2,res.x[1]*2,num=50)
-    scales = np.linspace(res.x[0]/2,res.x[0]*2,num=50)
-    
-    X,Y = np.meshgrid(varis,scales)
-    
-    liks = np.zeros((50,50))
-    for i in range(0,50):
-        for j in range(0,50):
-            liks[i,j] = loglik(np.array([scales[i],np.sqrt(varis[j])]))
-    
-    plt.contourf(X,Y,liks)
-    plt.colorbar()
-    plt.scatter(res.x[1],res.x[0],marker='x',c='r')
-    plt.xlabel('Noise Variance')
-    plt.ylabel('Length Scale')
-    #plt.savefig('hp_contours.pdf')
-    plt.show()
+    # first, check.
+    check2 = input('Create a contour plot? (CAREFUL!)')
+    if check2 == 'y':
+        varis = np.linspace(res.x[1]/2,res.x[1]*2,num=50)
+        scales = np.linspace(res.x[0]/2,res.x[0]*2,num=50)
+        
+        X,Y = np.meshgrid(varis,scales)
+        
+        liks = np.zeros((50,50))
+        for i in range(0,50):
+            for j in range(0,50):
+                liks[i,j] = loglik(np.array([scales[i],np.sqrt(varis[j])]))
+        
+        plt.contourf(X,Y,liks)
+        plt.colorbar()
+        plt.scatter(res.x[1],res.x[0],marker='x',c='r')
+        plt.xlabel('Noise Variance')
+        plt.ylabel('Length Scale')
+        #plt.savefig('hp_contours.pdf')
+        plt.show()
