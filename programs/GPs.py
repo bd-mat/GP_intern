@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import random as rd
 import time
 
-SEED = 151735984
+SEED = 140725987
 rd.seed(SEED)
 np.random.seed(seed=SEED)
 
@@ -56,7 +56,7 @@ def GP(x_ob,y_ob,xs,fs,hyps):
     N = len(x_ob)
     # means:
     rmeans = np.dot((K(xs,x_ob,hyps[0]) @ np.linalg.inv(K(x_ob,x_ob,hyps[0])
-                - (hyps[1]*np.identity(N)))),y_ob)
+                + (hyps[1]*np.identity(N)))),y_ob)
     # and the covariances:
     rcovs = K(xs,xs,hyps[0]) - ((K(xs,x_ob,hyps[0]) @ 
                 np.linalg.inv(K(x_ob,x_ob,hyps[0]) 
@@ -102,7 +102,7 @@ plt.show()
 
 # make a random mask, but distribute the points over the domain
 rands = np.zeros(N,dtype=bool)
-N_obs = 5
+N_obs = 30
 divs = int(np.floor(N/N_obs))
 for i in range(0,N_obs):
     rands[rd.randint(i*divs,(i+1)*divs-1)] = True
@@ -128,7 +128,7 @@ begin = time.time()
 # K(x',x)[K(x,x) + var*I]^-1 y
 
 reg_means = np.dot((K(xs,obs_x,scale) @ np.linalg.inv(K(obs_x,obs_x,scale)
-            - (var*np.identity(N_obs)))),obs_y)
+            + (var*np.identity(N_obs)))),obs_y)
 
 # and the covariances:
 # K(x',x') - K(x',x) [K(x,x) + var*I]^-1 K(x,x')
