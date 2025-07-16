@@ -14,6 +14,8 @@ textwidth=18cm,
 top=1.5cm,
 bottom=1.5cm}
 
+\newtcolorbox{bestbox}[1][]{colback=blue!5!white,sharp corners,colframe=black}
+
 \newcommand{\minisection}[1]{
     \par\vspace{0.25cm}
     \textbf{#1}\par
@@ -40,7 +42,7 @@ bottom=1.5cm}
 \begin{document}
     \doubleline
     \begin{center}
-        \huge \textbf{Stats Notes}
+        \huge \textbf{Stats Notes} \label{Stats Notes}
     \end{center}
     \doubleline
     % --------
@@ -220,7 +222,7 @@ bottom=1.5cm}
     \vspace*{0.5cm}
     \doubleline
     \begin{center}
-        \huge \textbf{Gaussian Processes}
+        \huge \textbf{Gaussian Processes} \label{Gaussian Processes}
     \end{center}
     \doubleline
     \minisection{Introduction}
@@ -303,6 +305,109 @@ bottom=1.5cm}
     \end{center}
     This being said, the effectiveness of this method varies - the log-likelihood may have local maxima, and the noise variance (particularly) is prone to being largely underestimated or overestimated.\\
     A log-likelihood minimisation routine is implemented in the \verb|GPs.py| program (though the plotting is quite inefficient).
+
+    % next section
+    \vspace*{0.5cm}
+    \doubleline
+    \begin{center}
+        \huge \textbf{Intro to GPJax} \label{GPJax}
+    \end{center}
+    \doubleline
+    \minisection{Basic Functionality}
+    GPJax (\href{https://docs.jaxgaussianprocesses.com/}{\textbf{documentation here}}) is a python package, built on the JAX structure, which greatly simplifies the amount of programming required to model GPs. Working in JAX (in contrast to numpy) is relatively straightforward, though there are some differences in, e.g., in-place modification (we must use \verb|.at()|).\\
+    Generally, we would only require the following packages to be imported:
+    \begin{verbatim}    import jax.numpy as jnp
+    import jax.random as jr
+    from jax import config
+    import gpjax as gpx
+    [import matplotlib.pyplot as plt]\end{verbatim}
+    The first two constitute necessary JAX functions, the third is for changing \textit{one very important setting}, the fourth is the package itself, and while \verb|matplotlib| is technically optional, there is really no time when we will not be using it.\\
+    Specifically, the important setting that we must specify is:
+    \begin{verbatim}    config.update("jax_enable_x64",True)\end{verbatim}
+    JAX normally works with 32-bit floats, but for GPJax, we require that they are 64-bit! As such, this should always be specified at the start of the program.
+    % --------
+    \minisection{A First Program}
+    In this section, I will walk through my \verb|GPjax_intro.py| file, which itself follows a tutorial available \href{https://docs.jaxgaussianprocesses.com/_examples/regression/}{\textbf{here}}. This should act as a reference for future programs.
+    \begin{verbatim}[18]    key = jr.key(123)\end{verbatim}
+    \begin{bestbox}
+        The \verb|jax.random| key acts as a seed for all random sampling; we should set this at the start.
+    \end{bestbox}
+    \begin{verbatim}[21]    N = 100
+[22]    noise = 0.3\end{verbatim}
+    \begin{bestbox}
+        We specify the number of samples ($100$), and the noise standard deviation, $\sigma_n=0.3$, so that $\varepsilon\sim N(\bm 0, \sigma_n^2\idop)$.    
+    \end{bestbox}
+    \begin{verbatim}[26]    key, subkey = jr.split(key)\end{verbatim}
+    \begin{bestbox}
+        We will be generating multiple random samples, so we may find it helpful to split our initial key (and use one for each). 
+    \end{bestbox}
+    \begin{verbatim}[29]    x = jr.uniform(key=key,minval=-3.,maxval=3.,shape=(N,))
+[30]    x = x.reshape(-1,1)\end{verbatim}
+    \begin{bestbox}
+        We generate $N$ randomly selected covariates for our observations, sampling from a uniform distribution, with $x\in(-3,3)$, with our first key. We must reshape the output to be a $2$D array.
+    \end{bestbox}
+    \begin{verbatim}[33]    fun = lambda x: jnp.sin(3*x) + jnp.cos(2*x)
+[35]    signal = fun(x)
+[37]    y = signal + jr.normal(subkey,shape=signal.shape) * noise\end{verbatim}
+    \begin{bestbox}
+        Define our latent function, e.g. $f(x) = \sin 3x + \cos 2x$, and take observations, $y$, with added gaussian noise.
+    \end{bestbox}
+    \begin{verbatim}[40]    D = gpx.Dataset(X=x,y=y)\end{verbatim}
+    \begin{bestbox}
+        Our first GPJax function - we place our observed data within a \verb|Dataset| object. Note that this will not work if $x$ is a $1$D array.
+    \end{bestbox}
+    \begin{verbatim}[43]    x_lat = jnp.linspace(-3.5,3.5,500).reshape(-1,1)
+[44]    y_lat = fun(x_lat)\end{verbatim}
+    \begin{bestbox}
+        Generate our `latent' covariates (which will also be used for the prior), as well as the corresponding values of the latent function, which we might then plot:
+        \begin{center}
+            \includegraphics[width=8cm]{gpjax_introplot.pdf}
+        \end{center}
+    \end{bestbox}
+    \begin{verbatim}[53]    kernel = gpx.kernels.RBF()
+[54]    meanf = gpx.mean_functions.Zero()
+[56]    prior = gpx.gps.Prior(mean_function=meanf,kernel=kernel)\end{verbatim}
+    \begin{bestbox}
+        As an example, we will try to model these observations using a zero-mean GP, with an RBF kernel. These are all special objects within the GPJax package (as above). In line $56$, we define this GP as our prior distribution, $f(\cdot)\sim N(0,\Sigma_p)$.
+    \end{bestbox}
+    \begin{verbatim}[60]    prior_dist = prior.predict(x_lat)
+[61]    sample = prior_dist.sample(key=key,sample_shape=(1,))\end{verbatim}
+    \begin{bestbox}
+        If we wanted to draw a sample from this prior distribution, this is how we would do it. In fact, if we changed \verb|(1,)| to some \verb|(n,)|, we could generate as many as we liked:
+        \begin{center}
+            \includegraphics[width=8cm]{gpjax_example_samples.pdf}
+        \end{center}
+    \end{bestbox}
+    \begin{verbatim}[72]    likelihood = gpx.likelihoods.Gaussian(num_datapoints=D.n)\end{verbatim}
+    \begin{bestbox}
+        To construct a posterior, we would also require a likelihood. A simple choice is a gaussian, with noise parameter $\alpha$ - the value of this parameter is stored within the object, and initialised to $1$. \verb|D.n| simply returns the number of datapoints in \verb|D|.
+    \end{bestbox}
+    \begin{verbatim}[77]    posterior = prior * likelihood\end{verbatim}
+    \begin{bestbox}
+        We construct the posterior exactly as we would write it on paper, `multiplying' our prior object by the likelihood object. All (hyper)parameters are stored within, initialised to $1$.
+    \end{bestbox}
+    \begin{verbatim}[82]    opt_posterior, history = gpx.fit_scipy(
+[83]    model = posterior,
+[84]    objective = lambda p,d: -gpx.objectives.conjugate_mll(p,d),
+[85]    train_data = D
+[86]    )\end{verbatim}
+    \begin{bestbox}
+        To estimate the hyperparameters, we perform a minimisation of the negative marginal log-likelihood; this is how we would do that! \verb|opt_posterior| is the updated posterior, containing the fitted HPs, and \verb|history| gives the values of the MLL in each step of the minimisation routine.
+    \end{bestbox}
+    \begin{verbatim}[92]    latent_dist = opt_posterior.predict(x_lat,train_data=D)
+[93]    pred_dist = opt_posterior.likelihood(latent_dist)\end{verbatim}
+    \begin{bestbox}
+        Finally, we can construct our predictive distribution - from what I can understand, the first line ports over the prior hyperparameters (kernel variance and lengthscale), and the second ports over the likelihood hyperparameters (i.e. noise variance). 
+    \end{bestbox}
+    \begin{verbatim}[95]    pred_mean = pred_dist.mean
+[96]    pred_std = jnp.sqrt(pred_dist.variance)\end{verbatim}
+    \begin{bestbox}
+        From this object, we can extract the mean values of every points, as well as the associated error, and plot as usual:
+        \begin{center}
+            \includegraphics[width=8cm]{gpjax_result.pdf}
+        \end{center}
+    \end{bestbox}
+
 
     \newpage
     % Questions!
